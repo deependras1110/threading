@@ -1,14 +1,21 @@
+//Deependra Thakur
+//1001753178
+
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
+#include <pthread.h>
 
-#define MAX 5000000
-#define NUM_THREAD 1
+#define MAX 36
+#define NUM_THREAD 4
 
-int total = 0;
+
+int final=0;
 int n1,n2; 
 char *s1,*s2;
+pthread_mutex_t m;
 
 FILE *fp;
 
@@ -49,11 +56,16 @@ int readf(char* filename)
     }
 }
 
-int num_substring ( void )
+void* num_substring ( void*arg )
 {
     int i,j,k;
+    int total=0;
     int count ;
-    for (i = 0; i <= (n1-n2); i++)
+    int thread_id=*(int*)arg;
+    int start =(thread_id)*(n1/NUM_THREAD);
+    int end=(thread_id+1)*(n1/NUM_THREAD);
+
+    for (i=start; i <=end; i++)
     {
         count =0;
         for(j = i ,k = 0; k < n2; j++,k++)
@@ -67,16 +79,24 @@ int num_substring ( void )
                 count++;
             }
             if (count==n2)
+                //pthread_mutex_lock(&lock);
                 total++; /*find a substring in this step*/
+                // pthread_mutex_unlock(&lock);
          }
     }
-    return total ;
+    pthread_mutex_lock(&m);
+    final+=total; 
+    pthread_mutex_unlock(&m);
+    return NULL ;
 }
     
 int main(int argc, char *argv[])
 {
-    int count ;
+    int count=0 ;
     pthread_t tid[NUM_THREAD];
+    int id[NUM_THREAD];
+
+
 
     if( argc < 2 )
     {
@@ -93,13 +113,16 @@ int main(int argc, char *argv[])
 
     //count = num_substring () ;
     for(int i=0;i<NUM_THREAD;i++){
-        pthread_create(tid[i],NULL,num_substring,(void*)&i);
+        id[i]=i;
+        if(pthread_create(&tid[i],NULL,num_substring,(void*)&id[i])){
+            perror("error creating thread");
+        }
     }
     for(int i=0;i<NUM_THREAD;i++){
-        pthread_join(tid[i],NULL);
+        if(pthread_join(tid[i],NULL)){
+            perror("Error joining thread");
+        }
     }
-
-    
 
     gettimeofday(&end, NULL);
 
@@ -107,7 +130,7 @@ int main(int argc, char *argv[])
     usecs = end.tv_usec - start.tv_usec;
     mtime = ((secs) * 1000 + usecs/1000.0) + 0.5;
 
-    printf ("The number of substrings is : %d\n" , total) ;
+    printf ("The number of substrings is : %d\n",final) ;
     printf ("Elapsed time is : %f milliseconds\n", mtime );
 
     if( s1 )
